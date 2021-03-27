@@ -30,14 +30,14 @@ typedef struct {
 } Task;
 
 /* Array of Tasks. */
-struct Task Tasks[TASK_MAX];
+Task Tasks[TASK_MAX];
 /* Number of Tasks stored in memory. */
 unsigned short count = 0;
 
 
 /* Checks the user's input and acts accordingly. */
 int main() {
-    char command;
+    /* char command; */
 
     return 0;
 }
