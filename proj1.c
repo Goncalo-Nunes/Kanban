@@ -36,6 +36,8 @@
 #define IN_PROGRESS "IN PROGRESS\0" /* String that represents the TO DO Activity. */
 #define DONE "DONE\0" /* String that represents the TO DO Activity. */
 #define TASK "task" /* TASK string */
+#define DURATION "duration" /* duration string. */
+#define SLACK "slack" /* slack string. */
 
 #define ERROR_TOO_MANY_TASKS "too many tasks" /* Error string for too many tasks. */
 #define ERROR_DUPLICATE_DESCRIPTION "duplicate description" /* Error string for duplicate description. */
@@ -43,7 +45,9 @@
 #define ERROR_INVALID_TIME "invalid time" /* Error string for invalid time. */
 #define ERROR_TOO_MANY_USERS "too many users" /* Error string for too many users. */
 #define ERROR_USER_ALREADY_EXISTS "user already exists" /* Error string for duplicate user. */
-
+#define ERROR_TASK_ALREADY_STARTED "task already started" /* Error string for task already started. */
+#define ERROR_NO_SUCH_ACTIVITY "no such activity" /* Error string for no such activity. */
+#define ERROR_NO_SUCH_USER "no such user" /* Error string for no such user. */
 
 #define ERROR -1 /* Error Code. */
 
@@ -120,15 +124,14 @@ int argument_exists(char string[]) {
 
 /* Function that modifies the kanban.arguments string with the user's input. */
 void get_arguments(char string[], short num_args) {
-    int j, args;
+    int j = 0, args = 0;
     unsigned int i;
     int flag = NO_CHAR_FOUND;
 
-    j=0; args=0;
     for(i=1;i<=ARGUMENT_MAX_CHAR;i++)
     {
         /* if space or NULL found, assign NULL into arguments[args] */
-        if((string[i] == ' '|| string[i] == '\0') && (args < (num_args - 1) || num_args == 1))
+        if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || num_args == 1))
         {
             if (flag == FOUND_CHAR) {
                 kanban.arguments[args][j]='\0';
@@ -168,7 +171,19 @@ int is_duplicate_user(char user[]) {
             return TRUE;
 
     return FALSE;
+}
 
+
+/* Checks if the given activity already exists. 
+Returns True if the user already exists and False otherwise. */
+int is_duplicate_activity(char activity[]) {
+    unsigned int i;
+
+    for (i = 0; i < kanban.activities.count; i++) 
+        if (strcmp(kanban.activities.activity[i], activity) == 0)
+            return TRUE;
+
+    return FALSE;
 }
 
 
@@ -269,6 +284,17 @@ int add_user(char user[]) {
     return TRUE;
 }
 
+/* Finds the index of a task with the given id. 
+Returns the index if the id was found or returns ERROR if it wasn't.*/
+int find_task_by_id(unsigned int id) {
+    unsigned int i;
+    for (i = 0; i < kanban.tasks.count; i++) {
+        if (kanban.tasks.task[i].id == id) {
+            return i;
+        }
+    }
+    return ERROR;
+}
 
 void handle_command_t(char string[]) {
     unsigned short num_args = 2;
@@ -316,7 +342,6 @@ void handle_command_n(char string[]) {
 
 void handle_command_u(char string[]) {
     unsigned int i;
-
     get_arguments(string, 1);
 
     if (argument_exists(string)) {
@@ -328,9 +353,47 @@ void handle_command_u(char string[]) {
 }
 
 void handle_command_m(char string[]) {
+    int slack, index;
+    unsigned int time_spent;
+    get_arguments(string, 3);
+    index = find_task_by_id(atoi(kanban.arguments[0]));
 
+    if (index == ERROR) {
+        printf("%s\n", ERROR_NO_SUCH_TASK);
+        return;
 
-    
+    } else if (strcmp(kanban.arguments[2], TODO) == 0\
+    && strcmp(kanban.tasks.task[index].activity, TODO) != 0) {
+        printf("%s\n", ERROR_TASK_ALREADY_STARTED);
+        return;
+
+    } else if (!is_duplicate_user(kanban.arguments[1])) {
+        printf("%s\n", ERROR_NO_SUCH_USER);
+        return;
+
+    } else if (!is_duplicate_activity(kanban.arguments[2])) {
+        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
+        return;
+    }
+
+    strcpy(kanban.tasks.task[index].user, kanban.arguments[1]);
+
+    if (strcmp(kanban.arguments[2], kanban.tasks.task[index].activity) != 0) {
+        if (strcmp(kanban.arguments[2], DONE) == 0) {
+
+            if (strcmp(kanban.tasks.task[index].activity, TODO) == 0)
+                time_spent = 0;
+            else 
+                time_spent = kanban.time - kanban.tasks.task[index].start_time;
+            slack = time_spent - kanban.tasks.task[index].expected_duration;
+            printf("%s=%d %s=%d\n", DURATION, time_spent, SLACK, slack);
+
+        } else if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) 
+            kanban.tasks.task[index].start_time = kanban.time;
+        
+        strcpy(kanban.tasks.task[index].activity, kanban.arguments[2]);
+        
+    }    
 }
 
 
