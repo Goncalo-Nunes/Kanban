@@ -18,6 +18,8 @@
 
 #define NO_CHAR_FOUND 0
 #define FOUND_CHAR 1
+#define NO_SPACING 0
+#define SPACING 1
 
 #define DESCRIPTION_MAX_CHAR 51 /* Maximum value of characters in the Task's Description string. */
 #define USER_MAX_CHAR 21 /* Maximum value of characters in the Task's User string. */
@@ -42,12 +44,16 @@
 #define ERROR_TOO_MANY_TASKS "too many tasks" /* Error string for too many tasks. */
 #define ERROR_DUPLICATE_DESCRIPTION "duplicate description" /* Error string for duplicate description. */
 #define ERROR_NO_SUCH_TASK "no such task" /* Error string for no such task. */
+#define ERROR_INVALID_DURATION "invalid duration" /* Error string for invalid duration. */
 #define ERROR_INVALID_TIME "invalid time" /* Error string for invalid time. */
 #define ERROR_TOO_MANY_USERS "too many users" /* Error string for too many users. */
 #define ERROR_USER_ALREADY_EXISTS "user already exists" /* Error string for duplicate user. */
 #define ERROR_TASK_ALREADY_STARTED "task already started" /* Error string for task already started. */
 #define ERROR_NO_SUCH_ACTIVITY "no such activity" /* Error string for no such activity. */
 #define ERROR_NO_SUCH_USER "no such user" /* Error string for no such user. */
+#define ERROR_DUPLICATE_ACTIVITY "duplicate activity" /* Error string for duplicate description. */
+#define ERROR_INVALID_ACTIVITY "invalid description" /* Error string for invalid activity */
+#define ERROR_TOO_MANY_ACTIVITIES "too many activities" /* Error string for too many activities. */
 
 #define ERROR -1 /* Error Code. */
 
@@ -123,15 +129,15 @@ int argument_exists(char string[]) {
 }
 
 /* Function that modifies the kanban.arguments string with the user's input. */
-void get_arguments(char string[], short num_args) {
+void get_arguments(char string[], short num_args, int spacing) {
     int j = 0, args = 0;
     unsigned int i;
     int flag = NO_CHAR_FOUND;
 
-    for(i=1;i<=ARGUMENT_MAX_CHAR;i++)
+    for(i=2;i<=ARGUMENT_MAX_CHAR;i++)
     {
         /* if space or NULL found, assign NULL into arguments[args] */
-        if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || num_args == 1))
+        if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || (spacing == NO_SPACING && num_args == 1)))
         {
             if (flag == FOUND_CHAR) {
                 kanban.arguments[args][j]='\0';
@@ -188,10 +194,9 @@ int is_duplicate_activity(char activity[]) {
 
 
 /* Adds if possible a new Task to the Kanban board. Returns False if the arguments
-are incorrect or returns the id of the newly added task. */
+are incorrect or returns True if the task was created successfully. */
 int add_task(int duration, char description[]) {
 
-    /* Check description argument */
     if (kanban.tasks.count >= TASK_MAX) {
         printf("%s\n", ERROR_TOO_MANY_TASKS);
         return FALSE;
@@ -202,7 +207,12 @@ int add_task(int duration, char description[]) {
         return FALSE;
     }
 
-    if (duration < 0 || strlen(description) > DESCRIPTION_MAX_CHAR) { 
+    else if (duration <= 0){
+        printf("%s\n", ERROR_INVALID_DURATION);
+        return FALSE;
+    }
+
+    else if (strlen(description) > DESCRIPTION_MAX_CHAR) { 
         return FALSE;
     }
     
@@ -216,7 +226,7 @@ int add_task(int duration, char description[]) {
     printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
     kanban.tasks.count++;
     
-    return kanban.tasks.task[kanban.tasks.count].id - 1;
+    return TRUE;
 }
 
 /* Prints the task's details based on the given id. 
@@ -243,8 +253,23 @@ void sort_by_description() {
 
     for (step = 0; step < kanban.tasks.count; step++) {
         for (i = 0; i < kanban.tasks.count - step - 1; i++) {
-
             if (strcmp(kanban.tasks.task[i].description, kanban.tasks.task[i+1].description) > 0) {
+                temp = kanban.tasks.task[i];
+                kanban.tasks.task[i] = kanban.tasks.task[i + 1];
+                kanban.tasks.task[i + 1] = temp;
+            }
+        }
+    }
+}
+
+/* Implementation of Bubble Sort algorithm to order the tasks alphabetically */
+void sort_by_start_time() {
+    unsigned int i, step;
+    Task temp;
+
+    for (step = 0; step < kanban.tasks.count; step++) {
+        for (i = 0; i < kanban.tasks.count - step - 1; i++) {
+            if (kanban.tasks.task[i].start_time > kanban.tasks.task[i+1].start_time) {
                 temp = kanban.tasks.task[i];
                 kanban.tasks.task[i] = kanban.tasks.task[i + 1];
                 kanban.tasks.task[i + 1] = temp;
@@ -296,10 +321,21 @@ int find_task_by_id(unsigned int id) {
     return ERROR;
 }
 
+
+int is_valid_activity(char activity[]) {
+    unsigned int i;
+    for (i = 0; i < strlen(activity); i++) {
+        if (activity[i] >= 'a' && activity[i] <= 'z')
+            return FALSE;
+    }
+    return TRUE;
+}
+
+
 void handle_command_t(char string[]) {
     unsigned short num_args = 2;
  
-    get_arguments(string, num_args);
+    get_arguments(string, num_args, SPACING);
     add_task(atoi(kanban.arguments[0]), kanban.arguments[1]);
 }
 
@@ -335,14 +371,14 @@ void handle_command_l(char string[]) {
 }
 
 void handle_command_n(char string[]) {
-    get_arguments(string, 1);
+    get_arguments(string, 1, NO_SPACING);
     time_forward(atoi(kanban.arguments[0]));
 }
 
 
 void handle_command_u(char string[]) {
     unsigned int i;
-    get_arguments(string, 1);
+    get_arguments(string, 1, NO_SPACING);
 
     if (argument_exists(string)) {
         add_user(kanban.arguments[0]); /* add new user to the kanban */
@@ -355,7 +391,7 @@ void handle_command_u(char string[]) {
 void handle_command_m(char string[]) {
     int slack, index;
     unsigned int time_spent;
-    get_arguments(string, 3);
+    get_arguments(string, 3, SPACING);
     index = find_task_by_id(atoi(kanban.arguments[0]));
 
     if (index == ERROR) {
@@ -391,10 +427,63 @@ void handle_command_m(char string[]) {
         } else if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) 
             kanban.tasks.task[index].start_time = kanban.time;
         
-        strcpy(kanban.tasks.task[index].activity, kanban.arguments[2]);
-        
+        strcpy(kanban.tasks.task[index].activity, kanban.arguments[2]); 
     }    
 }
+
+void handle_command_d(char string[]) {
+    unsigned int i;
+    get_arguments(string, 1, SPACING);
+
+    if (!is_duplicate_activity(kanban.arguments[0])) {
+        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
+        return;
+    }
+
+    sort_by_description();
+    sort_by_start_time();
+
+    for (i = 0; i < kanban.tasks.count; i++) {
+        if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
+            printf("%d %d %s\n", kanban.tasks.task[i].id,\
+            kanban.tasks.task[i].start_time, kanban.tasks.task[i].description);
+        }
+    }
+}
+
+/* Adds an activity to the kanban board. Returns True if the activity was added successfully or
+returns False otherwise and prints the corresponding error. */
+int add_activity(char activity[]) {
+    if (is_duplicate_activity(activity)) {
+            printf("%s\n", ERROR_DUPLICATE_ACTIVITY);
+            return FALSE;
+
+    } else if (!is_valid_activity(activity)) {
+        printf("%s\n", ERROR_INVALID_ACTIVITY);
+        return FALSE;
+        
+    } else if (kanban.activities.count >= ACTIVITY_MAX) {
+        printf("%s\n", ERROR_TOO_MANY_ACTIVITIES);
+        return FALSE;
+    }
+    strcpy(kanban.activities.activity[kanban.activities.count], activity);
+    kanban.activities.count++;
+    return TRUE;
+}
+
+
+void handle_command_a(char string[]) {
+    unsigned int i;
+
+    if (!argument_exists(string)) {
+        for (i = 0; i < kanban.activities.count; i++)
+            printf("%s\n", kanban.activities.activity[i]);
+    } else {
+        get_arguments(string, 1, NO_SPACING);
+        add_activity(kanban.arguments[0]);
+    }
+}
+
 
 
 /* Checks the user's input and acts accordingly. */
@@ -443,10 +532,10 @@ int main() {
             break;
 
         case 'd':
-            
+            handle_command_d(string);
             break;
         case 'a':
-            
+            handle_command_a(string);
             break;
 
         default:
