@@ -28,11 +28,12 @@
 #define TASK_MAX 10000 /* Maximum ammount of simultaneous Tasks. */
 #define ACTIVITY_MAX 10 /* Maximum ammount of Activities. */
 #define USER_MAX 50 /* Maximum ammount of Users. */
+#define INITIAL_ACTIVITIES 3 /* Initial number of activities. */
 
 #define ARGUMENT_MAX_CHAR 75
 #define ARGUMENTS_MAX 3
 
-#define STRING_MAX 30000 /* Maximum ammount of characters in each command. */
+#define STRING_MAX 200 /* Maximum ammount of characters in each command. */
 
 #define TODO "TO DO\0" /* String that represents the TO DO Activity. */
 #define IN_PROGRESS "IN PROGRESS\0" /* String that represents the TO DO Activity. */
@@ -221,6 +222,7 @@ int add_task(int duration, char description[]) {
     strcpy(kanban.tasks.task[kanban.tasks.count].description, description);
     kanban.tasks.task[kanban.tasks.count].id = kanban.tasks.count + 1;
     kanban.tasks.task[kanban.tasks.count].start_time = 0;
+    kanban.activities.count = INITIAL_ACTIVITIES;
     strcpy(kanban.tasks.task[kanban.tasks.count].activity, TODO);
 
     printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
@@ -242,7 +244,7 @@ int list_task(unsigned int id) {
         }
     }
 
-    printf("%s\n", ERROR_NO_SUCH_TASK);
+    printf("%d: %s\n", id, ERROR_NO_SUCH_TASK);
     return FALSE;
 }
 
@@ -340,28 +342,30 @@ void handle_command_t(char string[]) {
 }
 
 
-void handle_command_l(char string[]) {
-    unsigned int i, j = 0;
+void handle_command_l() {
+    unsigned int i, j = 0, count = 0;
     char id[ID_MAX_CHAR];
     short flag = NO_CHAR_FOUND;
+    char c = '_';
 
-    if (argument_exists(string)) {
-        /* Find each id inserted */
-        for (i = 1; i <= strlen(string); i++) {
-            if (string[i] == ' ' || string[i] == '\0') {
-                if (flag == FOUND_CHAR) {
-                    id[j] = '\0';
-                    j = 0;
-                    flag = NO_CHAR_FOUND;
-                    list_task(atoi(id)); /* print the task's information */
-                }
-            } else {
-                id[j] = string[i];
-                j++;
-                flag = FOUND_CHAR;
+    /* Find each id inserted */
+    while(c != '\n') {
+        c = getchar();
+        if (c == ' ' || c == '\0' || c == '\n') {
+            if (flag == FOUND_CHAR) {
+                id[j] = '\0';
+                j = 0;
+                count++;
+                flag = NO_CHAR_FOUND;
+                list_task(atoi(id)); /* print the task's information */
             }
+        } else {
+            id[j] = c;
+            j++;
+            flag = FOUND_CHAR;
         }
-    } else {
+    }
+    if (count == 0){
         /* List all tasks by description */
         sort_by_description();
         for (i = 0; i < kanban.tasks.count; i++)
@@ -431,6 +435,7 @@ void handle_command_m(char string[]) {
     }    
 }
 
+
 void handle_command_d(char string[]) {
     unsigned int i;
     get_arguments(string, 1, SPACING);
@@ -466,6 +471,7 @@ int add_activity(char activity[]) {
         printf("%s\n", ERROR_TOO_MANY_ACTIVITIES);
         return FALSE;
     }
+
     strcpy(kanban.activities.activity[kanban.activities.count], activity);
     kanban.activities.count++;
     return TRUE;
@@ -479,32 +485,31 @@ void handle_command_a(char string[]) {
         for (i = 0; i < kanban.activities.count; i++)
             printf("%s\n", kanban.activities.activity[i]);
     } else {
-        get_arguments(string, 1, NO_SPACING);
+        get_arguments(string, 1, SPACING);
         add_activity(kanban.arguments[0]);
     }
 }
 
-
+void read_line(char string[]) {
+    unsigned int i = 1;  
+    char c;
+    while ((c = getchar()) != '\n' && i < STRING_MAX) {
+        string[i] = c;
+        i++;
+    }
+    string[i] = '\0'; /* Add null byte to the end of the string */
+}
 
 /* Checks the user's input and acts accordingly. */
 int main() {
     char string[STRING_MAX];
-    char c, command = '_';  
-    unsigned int i = 0;  
+    char command = '_';  
 
     initialize_board();
 
-    while (command != 'q') {
-        while ((c = getchar()) != '\n' && i < STRING_MAX) {
-            if (c == EOF)
-                return 0;
-            string[i] = c;
-            i++;
-        }
+    while ((command = getchar()) != 'q') {
 
-        string[i] = '\0'; /* Add null byte to the end of the string */
-        i = 0;
-        command = string[0];
+        string[0] = command;
 
         switch (command)
         {
@@ -512,29 +517,36 @@ int main() {
             return 0;
 
         case 't':
+            read_line(string);
             handle_command_t(string);
             break;
 
         case 'l':
-            handle_command_l(string);
+            handle_command_l();
             break;
 
         case 'n':
+            read_line(string);
             handle_command_n(string);
             break;
 
         case 'u':
+            read_line(string);
             handle_command_u(string);
             break;
 
         case 'm':
+            read_line(string);
             handle_command_m(string);
             break;
 
         case 'd':
+            read_line(string);
             handle_command_d(string);
             break;
+
         case 'a':
+            read_line(string);
             handle_command_a(string);
             break;
 
