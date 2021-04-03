@@ -116,6 +116,7 @@ void initialize_board() {
     strcpy(kanban.activities.activity[0], TODO);
     strcpy(kanban.activities.activity[1], IN_PROGRESS);
     strcpy(kanban.activities.activity[2], DONE);
+    kanban.activities.count = INITIAL_ACTIVITIES;
 }
 
 /* Checks if any argument was given by the user. Return True if an argument was found and False otherwise. */
@@ -222,7 +223,6 @@ int add_task(int duration, char description[]) {
     strcpy(kanban.tasks.task[kanban.tasks.count].description, description);
     kanban.tasks.task[kanban.tasks.count].id = kanban.tasks.count + 1;
     kanban.tasks.task[kanban.tasks.count].start_time = 0;
-    kanban.activities.count = INITIAL_ACTIVITIES;
     strcpy(kanban.tasks.task[kanban.tasks.count].activity, TODO);
 
     printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
@@ -298,13 +298,14 @@ int time_forward(int offset) {
 maximum ammount of simultanious users and if the user does not yet exist. 
 Returns True if the user was added succefully and False otherwise. */
 int add_user(char user[]) {
-    if (kanban.users.count >= USER_MAX) {
-        printf("%s\n", ERROR_TOO_MANY_USERS);
-        return FALSE;
-    } else if (is_duplicate_user(user)) {
+    if (is_duplicate_user(user)) {
         printf("%s\n", ERROR_USER_ALREADY_EXISTS);
         return FALSE;
-    }
+
+    } else if (kanban.users.count >= USER_MAX) {
+        printf("%s\n", ERROR_TOO_MANY_USERS);
+        return FALSE;
+    } 
 
     strcpy(kanban.users.user[kanban.users.count], user);
     kanban.users.count++;
@@ -402,8 +403,7 @@ void handle_command_m(char string[]) {
         printf("%s\n", ERROR_NO_SUCH_TASK);
         return;
 
-    } else if (strcmp(kanban.arguments[2], TODO) == 0\
-    && strcmp(kanban.tasks.task[index].activity, TODO) != 0) {
+    } else if (strcmp(kanban.arguments[2], TODO) == 0) {
         printf("%s\n", ERROR_TASK_ALREADY_STARTED);
         return;
 
@@ -421,9 +421,10 @@ void handle_command_m(char string[]) {
     if (strcmp(kanban.arguments[2], kanban.tasks.task[index].activity) != 0) {
         if (strcmp(kanban.arguments[2], DONE) == 0) {
 
-            if (strcmp(kanban.tasks.task[index].activity, TODO) == 0)
+            if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) {
                 time_spent = 0;
-            else 
+                kanban.tasks.task[index].start_time = kanban.time;
+            } else 
                 time_spent = kanban.time - kanban.tasks.task[index].start_time;
             slack = time_spent - kanban.tasks.task[index].expected_duration;
             printf("%s=%d %s=%d\n", DURATION, time_spent, SLACK, slack);
@@ -460,8 +461,8 @@ void handle_command_d(char string[]) {
 returns False otherwise and prints the corresponding error. */
 int add_activity(char activity[]) {
     if (is_duplicate_activity(activity)) {
-            printf("%s\n", ERROR_DUPLICATE_ACTIVITY);
-            return FALSE;
+        printf("%s\n", ERROR_DUPLICATE_ACTIVITY);
+        return FALSE;
 
     } else if (!is_valid_activity(activity)) {
         printf("%s\n", ERROR_INVALID_ACTIVITY);
@@ -502,7 +503,7 @@ void read_line(char string[]) {
 
 /* Checks the user's input and acts accordingly. */
 int main() {
-    char string[STRING_MAX];
+    char string[STRING_MAX] = {0};
     char command = '_';  
 
     initialize_board();
