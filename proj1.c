@@ -61,6 +61,8 @@
 
 
 
+
+
 /* STRUCTURES */
 
 /* Represents a Task with an id, description, user, activity, expected duration and start time. */
@@ -138,7 +140,7 @@ void get_arguments(char string[], short num_args, int spacing) {
 
     for(i=2;i<=ARGUMENT_MAX_CHAR;i++)
     {
-        /* if space or NULL found, assign NULL into arguments[args] */
+        
         if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || (spacing == NO_SPACING && num_args == 1)))
         {
             if (flag == FOUND_CHAR) {
@@ -227,7 +229,7 @@ int add_task(int duration, char description[]) {
 
     printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
     kanban.tasks.count++;
-    
+
     return TRUE;
 }
 
@@ -248,35 +250,46 @@ int list_task(unsigned int id) {
     return FALSE;
 }
 
-/* Implementation of Bubble Sort algorithm to order the tasks alphabetically */
-void sort_by_description() {
-    unsigned int i, step;
+/* Implementation of Selection Sort algorithm to order the tasks alphabetically */
+void sort_by_description(int l, int r) {
+    int i, step, done;
     Task temp;
 
-    for (step = 0; step < kanban.tasks.count; step++) {
-        for (i = 0; i < kanban.tasks.count - step - 1; i++) {
+    for (step = l; step < r; step++) {
+        done = 1;
+        for (i = l; i < r - step - 1; i++) {
             if (strcmp(kanban.tasks.task[i].description, kanban.tasks.task[i+1].description) > 0) {
                 temp = kanban.tasks.task[i];
                 kanban.tasks.task[i] = kanban.tasks.task[i + 1];
                 kanban.tasks.task[i + 1] = temp;
+                done = 0;
             }
         }
+        if (done == 1)
+            break;
     }
 }
 
-/* Implementation of Bubble Sort algorithm to order the tasks alphabetically */
-void sort_by_start_time() {
-    unsigned int i, step;
+/* Implementation of Bubble Sort algorithm to order the tasks by start time. */
+void sort_by_start_time(int l, int r) {
+    int i, step, done;
     Task temp;
 
-    for (step = 0; step < kanban.tasks.count; step++) {
-        for (i = 0; i < kanban.tasks.count - step - 1; i++) {
+    for (step = l; step < r; step++) {
+        done = 1;
+        for (i = l; i < r - step - 1; i++) {
             if (kanban.tasks.task[i].start_time > kanban.tasks.task[i+1].start_time) {
                 temp = kanban.tasks.task[i];
                 kanban.tasks.task[i] = kanban.tasks.task[i + 1];
                 kanban.tasks.task[i + 1] = temp;
+                done = 0;
+            } else if (kanban.tasks.task[i].start_time == kanban.tasks.task[i+1].start_time) {
+                sort_by_description(i, i+1);
+                done = 0;
             }
         }
+        if (done == 1)
+            break;
     }
 }
 
@@ -368,7 +381,7 @@ void handle_command_l() {
     }
     if (count == 0){
         /* List all tasks by description */
-        sort_by_description();
+        sort_by_description(0, kanban.tasks.count);
         for (i = 0; i < kanban.tasks.count; i++)
             list_task(kanban.tasks.task[i].id);
     }  
@@ -404,7 +417,8 @@ void handle_command_m(char string[]) {
         return;
 
     } else if (strcmp(kanban.arguments[2], TODO) == 0) {
-        printf("%s\n", ERROR_TASK_ALREADY_STARTED);
+        if(strcmp(kanban.tasks.task[index].activity, TODO) != 0)
+            printf("%s\n", ERROR_TASK_ALREADY_STARTED);
         return;
 
     } else if (!is_duplicate_user(kanban.arguments[1])) {
@@ -446,8 +460,7 @@ void handle_command_d(char string[]) {
         return;
     }
 
-    sort_by_description();
-    sort_by_start_time();
+    sort_by_start_time(0, kanban.tasks.count);
 
     for (i = 0; i < kanban.tasks.count; i++) {
         if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
