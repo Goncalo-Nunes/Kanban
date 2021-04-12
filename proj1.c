@@ -250,24 +250,25 @@ int list_task(unsigned int id) {
     return FALSE;
 }
 
+
+
+
+
 /* Implementation of Selection Sort algorithm to order the tasks alphabetically */
 void sort_by_description(int l, int r) {
-    int i, step, done;
+    int i, j, min;
     Task temp;
 
-    for (step = l; step < r; step++) {
-        done = 1;
-        for (i = l; i < r - step - 1; i++) {
-            if (strcmp(kanban.tasks.task[i].description, kanban.tasks.task[i+1].description) > 0) {
-                temp = kanban.tasks.task[i];
-                kanban.tasks.task[i] = kanban.tasks.task[i + 1];
-                kanban.tasks.task[i + 1] = temp;
-                done = 0;
-            }
-        }
-        if (done == 1)
-            break;
+    for (i = l; i < r; i++) {
+        min = i;
+        for (j = i+1; j <= r; j++)
+            if (strcmp(kanban.tasks.task[j].description, kanban.tasks.task[min].description) < 0)
+                min = j;
+        temp = kanban.tasks.task[i];
+        kanban.tasks.task[i] = kanban.tasks.task[min];
+        kanban.tasks.task[min] = temp;
     }
+    
 }
 
 /* Implementation of Bubble Sort algorithm to order the tasks by start time. */
@@ -275,24 +276,20 @@ void sort_by_start_time(int l, int r) {
     int i, step, done;
     Task temp;
 
-    for (step = l; step < r; step++) {
+    for (step = l; step <= r; step++) {
         done = 1;
-        for (i = l; i < r - step - 1; i++) {
+        for (i = l; i <= r - step - 1; i++) {
             if (kanban.tasks.task[i].start_time > kanban.tasks.task[i+1].start_time) {
                 temp = kanban.tasks.task[i];
                 kanban.tasks.task[i] = kanban.tasks.task[i + 1];
                 kanban.tasks.task[i + 1] = temp;
                 done = 0;
-            } else if (kanban.tasks.task[i].start_time == kanban.tasks.task[i+1].start_time) {
-                sort_by_description(i, i+1);
-                done = 0;
-            }
+            } 
         }
         if (done == 1)
             break;
     }
 }
-
 
 /* Forwards the time based on the given offset. 
 Returns True if the offset is valid and False if the offset is invalid. */
@@ -381,7 +378,7 @@ void handle_command_l() {
     }
     if (count == 0){
         /* List all tasks by description */
-        sort_by_description(0, kanban.tasks.count);
+        sort_by_description(0, kanban.tasks.count-1);
         for (i = 0; i < kanban.tasks.count; i++)
             list_task(kanban.tasks.task[i].id);
     }  
@@ -460,7 +457,8 @@ void handle_command_d(char string[]) {
         return;
     }
 
-    sort_by_start_time(0, kanban.tasks.count);
+    sort_by_description(0, kanban.tasks.count-1);
+    sort_by_start_time(0, kanban.tasks.count-1);
 
     for (i = 0; i < kanban.tasks.count; i++) {
         if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
@@ -513,6 +511,7 @@ void read_line(char string[]) {
     }
     string[i] = '\0'; /* Add null byte to the end of the string */
 }
+
 
 /* Checks the user's input and acts accordingly. */
 int main() {
