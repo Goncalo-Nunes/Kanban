@@ -59,7 +59,8 @@
 #define ERROR -1 /* Error Code. */
 
 
-
+#define key(A) (A)
+#define exch(A, B) { Task t = A; A = B; B = t; }
 
 
 
@@ -105,7 +106,7 @@ typedef struct {
 /* Global variable of type Kanban that represents the kanban board. */
 Kanban kanban;
 
-
+Task aux[TASK_MAX];
 
 /* FUNCTIONS */
 
@@ -253,43 +254,59 @@ int list_task(unsigned int id) {
 
 
 
-
 /* Implementation of Selection Sort algorithm to order the tasks alphabetically */
-void sort_by_description(int l, int r) {
-    int i, j, min;
-    Task temp;
+void insertion_sort_by_description(int l, int r) {
+    int i, j;
+    Task v;
 
-    for (i = l; i < r; i++) {
-        min = i;
-        for (j = i+1; j <= r; j++)
-            if (strcmp(kanban.tasks.task[j].description, kanban.tasks.task[min].description) < 0)
-                min = j;
-        temp = kanban.tasks.task[i];
-        kanban.tasks.task[i] = kanban.tasks.task[min];
-        kanban.tasks.task[min] = temp;
-    }
-    
-}
-
-/* Implementation of Bubble Sort algorithm to order the tasks by start time. */
-void sort_by_start_time(int l, int r) {
-    int i, step, done;
-    Task temp;
-
-    for (step = l; step <= r; step++) {
-        done = 1;
-        for (i = l; i <= r - step - 1; i++) {
-            if (kanban.tasks.task[i].start_time > kanban.tasks.task[i+1].start_time) {
-                temp = kanban.tasks.task[i];
-                kanban.tasks.task[i] = kanban.tasks.task[i + 1];
-                kanban.tasks.task[i + 1] = temp;
-                done = 0;
-            } 
+    for (i = l+1; i <= r; i++) {
+        v = kanban.tasks.task[i];
+        j = i-1;
+        while(j >= l && strcmp(v.description, kanban.tasks.task[j].description) < 0) {
+            kanban.tasks.task[j+1] = kanban.tasks.task[j];
+            j--;
         }
-        if (done == 1)
-            break;
+        kanban.tasks.task[j+1] = v;
     }
 }
+
+
+
+void sort_by_description(int l, int r) {
+    int i, j, h;
+    Task v;
+
+    for (h = 1; h <= (r-l)/9; h = 3*h+1)
+        ;
+    for ( ; h > 0; h /= 3)
+        for (i = l+h; i <= r; i++) {
+            j = i;
+            v = kanban.tasks.task[i];
+            while (j >= l+h && strcmp(v.description, kanban.tasks.task[j-h].description) < 0) {
+                kanban.tasks.task[j] = kanban.tasks.task[j-h];
+                j -= h;
+            }
+            kanban.tasks.task[j] = v;
+        }
+}
+
+
+/* Implementation of Insertion Sort algorithm to order the tasks by start time. */
+void sort_by_start_time(int l, int r) {
+    int i, j;
+    Task v;
+
+    for (i = l+1; i <= r; i++) {
+        v = kanban.tasks.task[i];
+        j = i-1;
+        while(j >= l && v.start_time < kanban.tasks.task[j].start_time) {
+            kanban.tasks.task[j+1] = kanban.tasks.task[j];
+            j--;
+        }
+        kanban.tasks.task[j+1] = v;
+    }
+}
+
 
 /* Forwards the time based on the given offset. 
 Returns True if the offset is valid and False if the offset is invalid. */
@@ -382,7 +399,6 @@ void handle_command_l() {
         for (i = 0; i < kanban.tasks.count; i++)
             list_task(kanban.tasks.task[i].id);
     }  
-    
 }
 
 void handle_command_n(char string[]) {
