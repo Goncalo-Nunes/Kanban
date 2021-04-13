@@ -106,7 +106,6 @@ typedef struct {
 /* Global variable of type Kanban that represents the kanban board. */
 Kanban kanban;
 
-Task aux[TASK_MAX];
 
 /* FUNCTIONS */
 
@@ -253,25 +252,6 @@ int list_task(unsigned int id) {
 
 
 
-
-/* Implementation of Selection Sort algorithm to order the tasks alphabetically */
-void insertion_sort_by_description(int l, int r) {
-    int i, j;
-    Task v;
-
-    for (i = l+1; i <= r; i++) {
-        v = kanban.tasks.task[i];
-        j = i-1;
-        while(j >= l && strcmp(v.description, kanban.tasks.task[j].description) < 0) {
-            kanban.tasks.task[j+1] = kanban.tasks.task[j];
-            j--;
-        }
-        kanban.tasks.task[j+1] = v;
-    }
-}
-
-
-
 void sort_by_description(int l, int r) {
     int i, j, h;
     Task v;
@@ -291,21 +271,53 @@ void sort_by_description(int l, int r) {
 }
 
 
-/* Implementation of Insertion Sort algorithm to order the tasks by start time. */
-void sort_by_start_time(int l, int r) {
-    int i, j;
-    Task v;
 
-    for (i = l+1; i <= r; i++) {
-        v = kanban.tasks.task[i];
-        j = i-1;
-        while(j >= l && v.start_time < kanban.tasks.task[j].start_time) {
-            kanban.tasks.task[j+1] = kanban.tasks.task[j];
-            j--;
-        }
-        kanban.tasks.task[j+1] = v;
-    }
+void merge_by_start_time(int l, int m, int r) {
+    Task temp[TASK_MAX];
+    int i = l, j = m + 1, k = 0;
+
+
+	while(i <= m && j <= r) {
+		if(kanban.tasks.task[i].start_time  <= kanban.tasks.task[j].start_time) {
+			temp[k] = kanban.tasks.task[i];
+			k += 1; i += 1;
+		}
+		else {
+			temp[k] = kanban.tasks.task[j];
+			k += 1; j += 1;
+		}
+	}
+
+	/* add elements left in the first interval */
+	while(i <= m) {
+		temp[k] = kanban.tasks.task[i];
+		k += 1; i += 1;
+	}
+
+	/* add elements left in the second interval */
+	while(j <= r) {
+		temp[k] = kanban.tasks.task[j];
+		k += 1; j += 1;
+	}
+
+	/* copy temp to original interval */
+	for(i = l; i <= r; i += 1) {
+		kanban.tasks.task[i] = temp[i - l];
+	}
+
 }
+
+
+void sort_by_start_time(int l, int r) {
+    int m;
+	if(l < r) {
+		m = (l + r) / 2;
+		sort_by_start_time(l, m);
+		sort_by_start_time(m+1, r);
+		merge_by_start_time(l, m, r);
+	}
+}
+
 
 
 /* Forwards the time based on the given offset. 
