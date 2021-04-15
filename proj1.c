@@ -287,52 +287,23 @@ int list_task(unsigned int id) {
 }
 
 
-
-void merge_by_description(int l, int m, int r) {
-    Task temp[TASK_MAX];
-    int i = l, j = m + 1, k = 0;
-
-
-	while(i <= m && j <= r) {
-		if(strcmp(kanban.tasks.task[i].description, kanban.tasks.task[j].description) < 0) {
-			temp[k] = kanban.tasks.task[i];
-			k += 1; i += 1;
-		}
-		else {
-			temp[k] = kanban.tasks.task[j];
-			k += 1; j += 1;
-		}
-	}
-
-	/* add elements left in the first interval */
-	while(i <= m) {
-		temp[k] = kanban.tasks.task[i];
-		k += 1; i += 1;
-	}
-
-	/* add elements left in the second interval */
-	while(j <= r) {
-		temp[k] = kanban.tasks.task[j];
-		k += 1; j += 1;
-	}
-
-	/* copy temp to original interval */
-	for(i = l; i <= r; i += 1) {
-		kanban.tasks.task[i] = temp[i - l];
-	}
-
-}
-
-/* Implementation of merge sort algorithm to sort 
-the kanban tasks in alphabetical order by theirs description. */
+/* Implementation of sheel sort algorithm to sort the tasks alphabetically. */
 void sort_by_description(int l, int r) {
-    int m;
-	if(l < r) {
-		m = (l + r) / 2;
-		sort_by_description(l, m);
-		sort_by_description(m+1, r);
-		merge_by_description(l, m, r);
-	}
+    int i, j, h;
+    Task v;
+
+    for (h = 1; h <= (r-l)/9; h = 3*h+1)
+        ;
+    for ( ; h > 0; h /= 3)
+        for (i = l+h; i <= r; i++) {
+            j = i;
+            v = kanban.tasks.task[i];
+            while (j >= l+h && strcmp(v.description, kanban.tasks.task[j-h].description) < 0) {
+                kanban.tasks.task[j] = kanban.tasks.task[j-h];
+                j -= h;
+            }
+            kanban.tasks.task[j] = v;
+        }
 }
 
 /* Compares two Tasks and returns True if the first Task's start_time is lower then the other
