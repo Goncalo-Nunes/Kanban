@@ -119,6 +119,7 @@ int add_task(int duration, char description[]);
 int list_task(unsigned int id);
 void merge_by_description(int l, int m, int r);
 void sort_by_description(int l, int r);
+void insertion_sort_by_start_time(Task a[], int l, int r);
 int less(Task task1, Task task2);
 void merge_by_start_time(Task a[], int l, int m, int r); 
 void sort_by_start_time(Task a[], int l, int r); 
@@ -338,61 +339,66 @@ void sort_by_description(int l, int r) {
 or in case they are equal, returns True if the first Task description is first in alphabetical order then the second.
 Returns False in any other case. */
 int less(Task task1, Task task2) {
-    if (task1.start_time < task2.start_time)
-        return TRUE;
-    else if (task1.start_time == task2.start_time &&\
-    strcmp(task1.description, task2.description) < 0)
-        return TRUE;
-    return FALSE;
+    return task1.start_time < task2.start_time ||\
+    (task1.start_time == task2.start_time &&\
+    strcmp(task1.description, task2.description) < 0);
+}
+
+/* Implementation of insertion sort to sort the given array by start time. */
+void insertion_sort_by_start_time(Task a[], int l, int r) {
+    int i, j;
+    Task v;
+
+    for (i = l+1; i <= r; i++) {
+        v = a[i];
+        j = i-1;
+        while(j >= l && less(v, a[j])) {
+            a[j+1] = a[j];
+            j--;
+        }
+        a[j+1] = v;
+    }
+}
+
+/* Partition function of the quick sort algorithm. */
+int partition(Task a[], int l, int r) {
+    int i = l-1;
+    int j = r;
+    int mid = l+(r-l)/2;
+    Task v;
+
+    if (less(a[mid], a[l])) exch(a[mid], a[l]);
+    if (less(a[mid], a[r])) exch(a[mid], a[r]); /* a[mid] is higher */
+    if (less(a[r], a[l])) exch(a[r], a[l]);
+    v = a[r];
+
+    while (i < j) {
+        while (less(a[++i], v));
+        while (less(v, a[--j]))
+            if (j == l)
+                break;
+        if (i < j)
+            exch(a[i], a[j]);
+    }
+    exch(a[i], a[r]);
+    return i;
 }
 
 
-void merge_by_start_time(Task a[], int l, int m, int r) {
-    Task temp[TASK_MAX];
-    int i = l, j = m + 1, k = 0;
-
-
-	while(i <= m && j <= r) {
-		if(less(a[i], a[j])) {
-			temp[k] = a[i];
-			k += 1; i += 1;
-		}
-		else {
-			temp[k] = a[j];
-			k += 1; j += 1;
-		}
-	}
-
-	/* add elements left in the first interval */
-	while(i <= m) {
-		temp[k] = a[i];
-		k += 1; i += 1;
-	}
-
-	/* add elements left in the second interval */
-	while(j <= r) {
-		temp[k] = a[j];
-		k += 1; j += 1;
-	}
-
-	/* copy temp to original interval */
-	for(i = l; i <= r; i += 1) {
-		a[i] = temp[i - l];
-	}
-
-}
-
-/* Implementation of merge sort algorithm to sort 
+/* Implementation of quick sort algorithm to sort 
 the given array of tasks by their start time as the primary criteria 
 and their alphabetical order as the secondery criteria.  */
 void sort_by_start_time(Task a[], int l, int r) {
-    int m;
-	if(l < r) {
-		m = (l + r) / 2;
-		sort_by_start_time(a, l, m);
-		sort_by_start_time(a, m+1, r);
-		merge_by_start_time(a, l, m, r);
-	}
+    int i;
+
+    if (r-l <= 10) {
+        insertion_sort_by_start_time(a, l, r);
+        return;
+    }
+    
+    i = partition(a, l, r);
+    sort_by_start_time(a, l, i-1);
+    sort_by_start_time(a, i+1, r);
 }
 
 
@@ -499,10 +505,8 @@ void handle_command_t(char string[]) {
 
 /* Handles the command to list the given tasks alphabetically. */
 void handle_command_l() {
-    unsigned int i, j = 0, count = 0;
-    char id[ID_MAX_CHAR];
-    short flag = NO_CHAR_FOUND;
-    char c = '_';
+    unsigned int i, j = 0, count = 0, flag = NO_CHAR_FOUND;
+    char id[ID_MAX_CHAR], c = '_';
 
     /* Find each inserted id */
     while(c != '\n') {
@@ -650,6 +654,7 @@ void handle_command_d(char string[]) {
         return;
     }
 
+    /* Add to the array the tasks in the given activity*/
     for (i = 0; i < kanban.tasks.count; i++) {
         if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
             tasks_in_activity[j] = kanban.tasks.task[i];
@@ -657,8 +662,10 @@ void handle_command_d(char string[]) {
         }
     }
 
+    /* sort the tasks */
     sort_by_start_time(tasks_in_activity, 0, j-1);
 
+    /* print the tasks in order */
     for (i = 0; i < j; i++) {
         if (strcmp(tasks_in_activity[i].activity, kanban.arguments[0]) == 0) {
             printf("%d %d %s\n", tasks_in_activity[i].id,\
