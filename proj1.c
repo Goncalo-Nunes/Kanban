@@ -16,10 +16,11 @@
 #define TRUE 1
 #define FALSE 0
 
-#define NO_CHAR_FOUND 0
-#define FOUND_CHAR 1
-#define NO_SPACING 0
-#define SPACING 1
+
+#define NO_CHAR_FOUND 0 /* flag to indicate that no relevant character was found. */
+#define FOUND_CHAR 1 /* flag to indicate that a relevant character was found. */
+#define NO_SPACING 0 /* flag to indicate the last argument given by the user does not have blank spaces. */
+#define SPACING 1 /* flag to indicate the last argument given by the user can have blank spaces. */
 
 #define DESCRIPTION_MAX_CHAR 51 /* Maximum value of characters in the Task's Description string. */
 #define USER_MAX_CHAR 21 /* Maximum value of characters in the Task's User string. */
@@ -30,8 +31,8 @@
 #define USER_MAX 50 /* Maximum ammount of Users. */
 #define INITIAL_ACTIVITIES 3 /* Initial number of activities. */
 
-#define ARGUMENT_MAX_CHAR 75
-#define ARGUMENTS_MAX 3
+#define ARGUMENT_MAX_CHAR 75 /* Maximum ammount of characters per argument. */
+#define ARGUMENTS_MAX 3 /* Maximum ammount of arguments. */
 
 #define STRING_MAX 200 /* Maximum ammount of characters in each command. */
 
@@ -57,7 +58,6 @@
 #define ERROR_TOO_MANY_ACTIVITIES "too many activities" /* Error string for too many activities. */
 
 #define ERROR -1 /* Error Code. */
-
 
 #define key(A) (A)
 #define exch(A, B) { Task t = A; A = B; B = t; }
@@ -107,438 +107,37 @@ typedef struct {
 Kanban kanban;
 
 
+/* Function Prototypes */
+
+void initialize_board();
+int argument_exists(char string[]);
+void get_arguments(char string[], short num_args, int spacing); 
+int is_duplicate_description(char description[]); 
+int is_duplicate_user(char user[]);
+int is_duplicate_activity(char activity[]); 
+int add_task(int duration, char description[]);
+int list_task(unsigned int id);
+void merge_by_description(int l, int m, int r);
+void sort_by_description(int l, int r);
+int less(Task task1, Task task2);
+void merge_by_start_time(Task a[], int l, int m, int r); 
+void sort_by_start_time(Task a[], int l, int r); 
+int time_forward(int offset);
+int add_user(char user[]);
+int find_task_by_id(unsigned int id);
+int is_valid_activity(char activity[]); 
+void handle_command_t(char string[]); 
+void handle_command_l();
+void handle_command_n(char string[]);
+void handle_command_u(char string[]); 
+void handle_command_m(char string[]); 
+void handle_command_d(char string[]);
+int add_activity(char activity[]);
+void handle_command_a(char string[]);
+void read_line(char string[]); 
+
+
 /* FUNCTIONS */
-
-/* Initializes the Kanban board with the initial values. */
-void initialize_board() {
-    kanban.time = 0;
-    kanban.activities.count = 3;
-    kanban.users.count = 0;
-    kanban.tasks.count = 0;
-    strcpy(kanban.activities.activity[0], TODO);
-    strcpy(kanban.activities.activity[1], IN_PROGRESS);
-    strcpy(kanban.activities.activity[2], DONE);
-    kanban.activities.count = INITIAL_ACTIVITIES;
-}
-
-/* Checks if any argument was given by the user. Return True if an argument was found and False otherwise. */
-int argument_exists(char string[]) {
-    unsigned int i;
-    for (i = 1; i < strlen(string)-1; i++) {
-        if (string[i] != ' ' || string[i] != '\n')
-             return TRUE;
-    }
-
-    return FALSE;
-}
-
-/* Function that modifies the kanban.arguments string with the user's input. */
-void get_arguments(char string[], short num_args, int spacing) {
-    int j = 0, args = 0;
-    unsigned int i;
-    int flag = NO_CHAR_FOUND;
-
-    for(i=2;i<=ARGUMENT_MAX_CHAR;i++)
-    {
-        
-        if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || (spacing == NO_SPACING && num_args == 1)))
-        {
-            if (flag == FOUND_CHAR) {
-                kanban.arguments[args][j]='\0';
-                args++;  
-                j=0;
-                flag = NO_CHAR_FOUND;
-            }
-        }
-        else
-        {  
-            kanban.arguments[args][j]=string[i];
-            j++;
-            flag = FOUND_CHAR;
-        }
-    }
-}
-
-/* Checks if the given description already exists in any of the kanban tasks. 
-Returns True if description already exists and False if it doesn't.  */
-int is_duplicate_description(char description[]) {
-    unsigned int i;
-
-    for (i = 0; i < kanban.tasks.count ; i++)
-        if (strcmp(description, kanban.tasks.task[i].description) == 0)
-            return TRUE;
-    
-    return FALSE;
-}
-
-/* Checks if the given user already exists. 
-Returns True if the user already exists and False otherwise. */
-int is_duplicate_user(char user[]) {
-    unsigned int i;
-
-    for (i = 0; i < kanban.users.count; i++) 
-        if (strcmp(kanban.users.user[i], user) == 0)
-            return TRUE;
-
-    return FALSE;
-}
-
-
-/* Checks if the given activity already exists. 
-Returns True if the user already exists and False otherwise. */
-int is_duplicate_activity(char activity[]) {
-    unsigned int i;
-
-    for (i = 0; i < kanban.activities.count; i++) 
-        if (strcmp(kanban.activities.activity[i], activity) == 0)
-            return TRUE;
-
-    return FALSE;
-}
-
-
-/* Adds if possible a new Task to the Kanban board. Returns False if the arguments
-are incorrect or returns True if the task was created successfully. */
-int add_task(int duration, char description[]) {
-
-    if (kanban.tasks.count >= TASK_MAX) {
-        printf("%s\n", ERROR_TOO_MANY_TASKS);
-        return FALSE;
-    }
-
-    else if (is_duplicate_description(description)) {
-        printf("%s\n", ERROR_DUPLICATE_DESCRIPTION);
-        return FALSE;
-    }
-
-    else if (duration <= 0){
-        printf("%s\n", ERROR_INVALID_DURATION);
-        return FALSE;
-    }
-
-    else if (strlen(description) > DESCRIPTION_MAX_CHAR) { 
-        return FALSE;
-    }
-    
-    /* Initialize Task */
-    kanban.tasks.task[kanban.tasks.count].expected_duration = duration; 
-    strcpy(kanban.tasks.task[kanban.tasks.count].description, description);
-    kanban.tasks.task[kanban.tasks.count].id = kanban.tasks.count + 1;
-    kanban.tasks.task[kanban.tasks.count].start_time = 0;
-    strcpy(kanban.tasks.task[kanban.tasks.count].activity, TODO);
-
-    printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
-    kanban.tasks.count++;
-
-    return TRUE;
-}
-
-/* Prints the task's details based on the given id. 
-Returns True if the task exits otherwise returns False and prints the error. */
-int list_task(unsigned int id) { 
-    unsigned int i;
-
-    for (i = 0; i < kanban.tasks.count; i++) {
-        if (kanban.tasks.task[i].id == id) {
-            printf("%d %s #%d %s\n", kanban.tasks.task[i].id, kanban.tasks.task[i].activity,\
-            kanban.tasks.task[i].expected_duration, kanban.tasks.task[i].description);
-            return TRUE;
-        }
-    }
-
-    printf("%d: %s\n", id, ERROR_NO_SUCH_TASK);
-    return FALSE;
-}
-
-
-
-void sort_by_description(int l, int r) {
-    int i, j, h;
-    Task v;
-
-    for (h = 1; h <= (r-l)/9; h = 3*h+1)
-        ;
-    for ( ; h > 0; h /= 3)
-        for (i = l+h; i <= r; i++) {
-            j = i;
-            v = kanban.tasks.task[i];
-            while (j >= l+h && strcmp(v.description, kanban.tasks.task[j-h].description) < 0) {
-                kanban.tasks.task[j] = kanban.tasks.task[j-h];
-                j -= h;
-            }
-            kanban.tasks.task[j] = v;
-        }
-}
-
-
-
-void merge_by_start_time(int l, int m, int r) {
-    Task temp[TASK_MAX];
-    int i = l, j = m + 1, k = 0;
-
-
-	while(i <= m && j <= r) {
-		if(kanban.tasks.task[i].start_time  <= kanban.tasks.task[j].start_time) {
-			temp[k] = kanban.tasks.task[i];
-			k += 1; i += 1;
-		}
-		else {
-			temp[k] = kanban.tasks.task[j];
-			k += 1; j += 1;
-		}
-	}
-
-	/* add elements left in the first interval */
-	while(i <= m) {
-		temp[k] = kanban.tasks.task[i];
-		k += 1; i += 1;
-	}
-
-	/* add elements left in the second interval */
-	while(j <= r) {
-		temp[k] = kanban.tasks.task[j];
-		k += 1; j += 1;
-	}
-
-	/* copy temp to original interval */
-	for(i = l; i <= r; i += 1) {
-		kanban.tasks.task[i] = temp[i - l];
-	}
-
-}
-
-
-void sort_by_start_time(int l, int r) {
-    int m;
-	if(l < r) {
-		m = (l + r) / 2;
-		sort_by_start_time(l, m);
-		sort_by_start_time(m+1, r);
-		merge_by_start_time(l, m, r);
-	}
-}
-
-
-
-/* Forwards the time based on the given offset. 
-Returns True if the offset is valid and False if the offset is invalid. */
-int time_forward(int offset) {
-    if (offset >= 0) {
-        kanban.time += offset;
-        printf("%d\n", kanban.time);
-        return TRUE;
-    }
-
-    printf("%s\n", ERROR_INVALID_TIME);
-    return FALSE;
-}
-
-/* Adds a user to the kanban board if the number of users does not exceed the
-maximum ammount of simultanious users and if the user does not yet exist. 
-Returns True if the user was added succefully and False otherwise. */
-int add_user(char user[]) {
-    if (is_duplicate_user(user)) {
-        printf("%s\n", ERROR_USER_ALREADY_EXISTS);
-        return FALSE;
-
-    } else if (kanban.users.count >= USER_MAX) {
-        printf("%s\n", ERROR_TOO_MANY_USERS);
-        return FALSE;
-    } 
-
-    strcpy(kanban.users.user[kanban.users.count], user);
-    kanban.users.count++;
-    return TRUE;
-}
-
-/* Finds the index of a task with the given id. 
-Returns the index if the id was found or returns ERROR if it wasn't.*/
-int find_task_by_id(unsigned int id) {
-    unsigned int i;
-    for (i = 0; i < kanban.tasks.count; i++) {
-        if (kanban.tasks.task[i].id == id) {
-            return i;
-        }
-    }
-    return ERROR;
-}
-
-
-int is_valid_activity(char activity[]) {
-    unsigned int i;
-    for (i = 0; i < strlen(activity); i++) {
-        if (activity[i] >= 'a' && activity[i] <= 'z')
-            return FALSE;
-    }
-    return TRUE;
-}
-
-
-void handle_command_t(char string[]) {
-    unsigned short num_args = 2;
- 
-    get_arguments(string, num_args, SPACING);
-    add_task(atoi(kanban.arguments[0]), kanban.arguments[1]);
-}
-
-
-void handle_command_l() {
-    unsigned int i, j = 0, count = 0;
-    char id[ID_MAX_CHAR];
-    short flag = NO_CHAR_FOUND;
-    char c = '_';
-
-    /* Find each id inserted */
-    while(c != '\n') {
-        c = getchar();
-        if (c == ' ' || c == '\0' || c == '\n') {
-            if (flag == FOUND_CHAR) {
-                id[j] = '\0';
-                j = 0;
-                count++;
-                flag = NO_CHAR_FOUND;
-                list_task(atoi(id)); /* print the task's information */
-            }
-        } else {
-            id[j] = c;
-            j++;
-            flag = FOUND_CHAR;
-        }
-    }
-    if (count == 0){
-        /* List all tasks by description */
-        sort_by_description(0, kanban.tasks.count-1);
-        for (i = 0; i < kanban.tasks.count; i++)
-            list_task(kanban.tasks.task[i].id);
-    }  
-}
-
-void handle_command_n(char string[]) {
-    get_arguments(string, 1, NO_SPACING);
-    time_forward(atoi(kanban.arguments[0]));
-}
-
-
-void handle_command_u(char string[]) {
-    unsigned int i;
-    get_arguments(string, 1, NO_SPACING);
-
-    if (argument_exists(string)) {
-        add_user(kanban.arguments[0]); /* add new user to the kanban */
-    } else {
-        for (i = 0; i < kanban.users.count; i++) /* print all users */
-            printf("%s\n", kanban.users.user[i]);
-    }
-}
-
-void handle_command_m(char string[]) {
-    int slack, index;
-    unsigned int time_spent;
-    get_arguments(string, 3, SPACING);
-    index = find_task_by_id(atoi(kanban.arguments[0]));
-
-    if (index == ERROR) {
-        printf("%s\n", ERROR_NO_SUCH_TASK);
-        return;
-
-    } else if (strcmp(kanban.arguments[2], TODO) == 0) {
-        if(strcmp(kanban.tasks.task[index].activity, TODO) != 0)
-            printf("%s\n", ERROR_TASK_ALREADY_STARTED);
-        return;
-
-    } else if (!is_duplicate_user(kanban.arguments[1])) {
-        printf("%s\n", ERROR_NO_SUCH_USER);
-        return;
-
-    } else if (!is_duplicate_activity(kanban.arguments[2])) {
-        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
-        return;
-    }
-
-    strcpy(kanban.tasks.task[index].user, kanban.arguments[1]);
-
-    if (strcmp(kanban.arguments[2], kanban.tasks.task[index].activity) != 0) {
-        if (strcmp(kanban.arguments[2], DONE) == 0) {
-
-            if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) {
-                time_spent = 0;
-                kanban.tasks.task[index].start_time = kanban.time;
-            } else 
-                time_spent = kanban.time - kanban.tasks.task[index].start_time;
-            slack = time_spent - kanban.tasks.task[index].expected_duration;
-            printf("%s=%d %s=%d\n", DURATION, time_spent, SLACK, slack);
-
-        } else if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) 
-            kanban.tasks.task[index].start_time = kanban.time;
-        
-        strcpy(kanban.tasks.task[index].activity, kanban.arguments[2]); 
-    }    
-}
-
-
-void handle_command_d(char string[]) {
-    unsigned int i;
-    get_arguments(string, 1, SPACING);
-
-    if (!is_duplicate_activity(kanban.arguments[0])) {
-        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
-        return;
-    }
-
-    sort_by_description(0, kanban.tasks.count-1);
-    sort_by_start_time(0, kanban.tasks.count-1);
-
-    for (i = 0; i < kanban.tasks.count; i++) {
-        if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
-            printf("%d %d %s\n", kanban.tasks.task[i].id,\
-            kanban.tasks.task[i].start_time, kanban.tasks.task[i].description);
-        }
-    }
-}
-
-/* Adds an activity to the kanban board. Returns True if the activity was added successfully or
-returns False otherwise and prints the corresponding error. */
-int add_activity(char activity[]) {
-    if (is_duplicate_activity(activity)) {
-        printf("%s\n", ERROR_DUPLICATE_ACTIVITY);
-        return FALSE;
-
-    } else if (!is_valid_activity(activity)) {
-        printf("%s\n", ERROR_INVALID_ACTIVITY);
-        return FALSE;
-        
-    } else if (kanban.activities.count >= ACTIVITY_MAX) {
-        printf("%s\n", ERROR_TOO_MANY_ACTIVITIES);
-        return FALSE;
-    }
-
-    strcpy(kanban.activities.activity[kanban.activities.count], activity);
-    kanban.activities.count++;
-    return TRUE;
-}
-
-
-void handle_command_a(char string[]) {
-    unsigned int i;
-
-    if (!argument_exists(string)) {
-        for (i = 0; i < kanban.activities.count; i++)
-            printf("%s\n", kanban.activities.activity[i]);
-    } else {
-        get_arguments(string, 1, SPACING);
-        add_activity(kanban.arguments[0]);
-    }
-}
-
-void read_line(char string[]) {
-    unsigned int i = 1;  
-    char c;
-    while ((c = getchar()) != '\n' && i < STRING_MAX) {
-        string[i] = c;
-        i++;
-    }
-    string[i] = '\0'; /* Add null byte to the end of the string */
-}
 
 
 /* Checks the user's input and acts accordingly. */
@@ -592,10 +191,515 @@ int main() {
             break;
 
         default:
-            printf("Error: Invalid Command: %c\n", command);
+            printf("[ERROR] Invalid Command: %c\n", command);
             break;
         }
     }
 
     return 0;
 }
+
+
+/* Reads the user's input and stores it in the given string. */
+void read_line(char string[]) {
+    unsigned int i = 1;  
+    char c;
+    while ((c = getchar()) != '\n' && i < STRING_MAX) {
+        string[i] = c;
+        i++;
+    }
+    string[i] = '\0'; /* Add null byte to the end of the string */
+}
+
+
+/* Initializes the Kanban board with the initial values. */
+void initialize_board() {
+    kanban.time = 0;
+    kanban.activities.count = 3;
+    kanban.users.count = 0;
+    kanban.tasks.count = 0;
+    strcpy(kanban.activities.activity[0], TODO);
+    strcpy(kanban.activities.activity[1], IN_PROGRESS);
+    strcpy(kanban.activities.activity[2], DONE);
+    kanban.activities.count = INITIAL_ACTIVITIES;
+}
+
+
+
+
+
+/* Function that modifies the kanban.arguments array with the user's input. */
+void get_arguments(char string[], short num_args, int spacing) {
+    int j = 0, args = 0;
+    unsigned int i;
+    int flag = NO_CHAR_FOUND;
+
+    for(i=2;i<=ARGUMENT_MAX_CHAR;i++)
+    {
+        
+        if((string[i] == ' ' || string[i] == '\0') && (args < (num_args - 1) || (spacing == NO_SPACING && num_args == 1)))
+        {
+            if (flag == FOUND_CHAR) {
+                kanban.arguments[args][j]='\0';
+                args++;  
+                j=0;
+                flag = NO_CHAR_FOUND;
+            }
+        }
+        else
+        {  
+            kanban.arguments[args][j]=string[i];
+            j++;
+            flag = FOUND_CHAR;
+        }
+    }
+}
+
+/* Checks if the given description already exists in any of the kanban tasks. 
+Returns True if description already exists and False if it does not. */
+int is_duplicate_description(char description[]) {
+    unsigned int i;
+
+    for (i = 0; i < kanban.tasks.count ; i++)
+        if (strcmp(description, kanban.tasks.task[i].description) == 0)
+            return TRUE;
+    
+    return FALSE;
+}
+
+
+/* Prints the task's details based on the given id. 
+Returns True if the task exits otherwise returns False and prints the error. */
+int list_task(unsigned int id) { 
+    unsigned int i;
+
+    for (i = 0; i < kanban.tasks.count; i++) {
+        if (kanban.tasks.task[i].id == id) {
+            printf("%d %s #%d %s\n", kanban.tasks.task[i].id, kanban.tasks.task[i].activity,\
+            kanban.tasks.task[i].expected_duration, kanban.tasks.task[i].description);
+            return TRUE;
+        }
+    }
+
+    printf("%d: %s\n", id, ERROR_NO_SUCH_TASK);
+    return FALSE;
+}
+
+
+
+void merge_by_description(int l, int m, int r) {
+    Task temp[TASK_MAX];
+    int i = l, j = m + 1, k = 0;
+
+
+	while(i <= m && j <= r) {
+		if(strcmp(kanban.tasks.task[i].description, kanban.tasks.task[j].description) < 0) {
+			temp[k] = kanban.tasks.task[i];
+			k += 1; i += 1;
+		}
+		else {
+			temp[k] = kanban.tasks.task[j];
+			k += 1; j += 1;
+		}
+	}
+
+	/* add elements left in the first interval */
+	while(i <= m) {
+		temp[k] = kanban.tasks.task[i];
+		k += 1; i += 1;
+	}
+
+	/* add elements left in the second interval */
+	while(j <= r) {
+		temp[k] = kanban.tasks.task[j];
+		k += 1; j += 1;
+	}
+
+	/* copy temp to original interval */
+	for(i = l; i <= r; i += 1) {
+		kanban.tasks.task[i] = temp[i - l];
+	}
+
+}
+
+/* Implementation of merge sort algorithm to sort 
+the kanban tasks in alphabetical order by theirs description. */
+void sort_by_description(int l, int r) {
+    int m;
+	if(l < r) {
+		m = (l + r) / 2;
+		sort_by_description(l, m);
+		sort_by_description(m+1, r);
+		merge_by_description(l, m, r);
+	}
+}
+
+/* Compares two Tasks and returns True if the first Task's start_time is lower then the other
+or in case they are equal, returns True if the first Task description is first in alphabetical order then the second.
+Returns False in any other case. */
+int less(Task task1, Task task2) {
+    if (task1.start_time < task2.start_time)
+        return TRUE;
+    else if (task1.start_time == task2.start_time &&\
+    strcmp(task1.description, task2.description) < 0)
+        return TRUE;
+    return FALSE;
+}
+
+
+void merge_by_start_time(Task a[], int l, int m, int r) {
+    Task temp[TASK_MAX];
+    int i = l, j = m + 1, k = 0;
+
+
+	while(i <= m && j <= r) {
+		if(less(a[i], a[j])) {
+			temp[k] = a[i];
+			k += 1; i += 1;
+		}
+		else {
+			temp[k] = a[j];
+			k += 1; j += 1;
+		}
+	}
+
+	/* add elements left in the first interval */
+	while(i <= m) {
+		temp[k] = a[i];
+		k += 1; i += 1;
+	}
+
+	/* add elements left in the second interval */
+	while(j <= r) {
+		temp[k] = a[j];
+		k += 1; j += 1;
+	}
+
+	/* copy temp to original interval */
+	for(i = l; i <= r; i += 1) {
+		a[i] = temp[i - l];
+	}
+
+}
+
+/* Implementation of merge sort algorithm to sort 
+the given array of tasks by their start time as the primary criteria 
+and their alphabetical order as the secondery criteria.  */
+void sort_by_start_time(Task a[], int l, int r) {
+    int m;
+	if(l < r) {
+		m = (l + r) / 2;
+		sort_by_start_time(a, l, m);
+		sort_by_start_time(a, m+1, r);
+		merge_by_start_time(a, l, m, r);
+	}
+}
+
+
+/* Checks if the given user already exists. 
+Returns True if the user already exists and False otherwise. */
+int is_duplicate_user(char user[]) {
+    unsigned int i;
+
+    for (i = 0; i < kanban.users.count; i++) 
+        if (strcmp(kanban.users.user[i], user) == 0)
+            return TRUE;
+
+    return FALSE;
+}
+
+
+/* Adds a user to the kanban board if the number of users does not exceed the
+maximum ammount of simultanious users and if the user does not yet exist. 
+Returns True if the user was added succefully and False otherwise. */
+int add_user(char user[]) {
+    if (is_duplicate_user(user)) {
+        printf("%s\n", ERROR_USER_ALREADY_EXISTS);
+        return FALSE;
+
+    } else if (kanban.users.count >= USER_MAX) {
+        printf("%s\n", ERROR_TOO_MANY_USERS);
+        return FALSE;
+    } 
+
+    strcpy(kanban.users.user[kanban.users.count], user);
+    kanban.users.count++;
+    return TRUE;
+}
+
+/* Finds the index of a task with the given id. 
+Returns the index if the id was found or returns ERROR if it wasn't.*/
+int find_task_by_id(unsigned int id) {
+    unsigned int i;
+    for (i = 0; i < kanban.tasks.count; i++) {
+        if (kanban.tasks.task[i].id == id) {
+            return i;
+        }
+    }
+    return ERROR;
+}
+
+/* Verifies if the given activity is valid, which means it does not contain any 
+lower case letter. Retuns True if the activity is valid and False if it is not. */
+int is_valid_activity(char activity[]) {
+    unsigned int i;
+    for (i = 0; i < strlen(activity); i++) {
+        if (activity[i] >= 'a' && activity[i] <= 'z')
+            return FALSE;
+    }
+    return TRUE;
+}
+
+
+/* Adds if possible a new Task to the Kanban board. Returns False if the arguments
+are incorrect or returns True if the task was created successfully. */
+int add_task(int duration, char description[]) {
+
+    if (kanban.tasks.count >= TASK_MAX) {
+        printf("%s\n", ERROR_TOO_MANY_TASKS);
+        return FALSE;
+    }
+
+    else if (is_duplicate_description(description)) {
+        printf("%s\n", ERROR_DUPLICATE_DESCRIPTION);
+        return FALSE;
+    }
+
+    else if (duration <= 0){
+        printf("%s\n", ERROR_INVALID_DURATION);
+        return FALSE;
+    }
+
+    else if (strlen(description) > DESCRIPTION_MAX_CHAR) { 
+        return FALSE;
+    }
+    
+    /* Initialize Task */
+    kanban.tasks.task[kanban.tasks.count].expected_duration = duration; 
+    strcpy(kanban.tasks.task[kanban.tasks.count].description, description);
+    kanban.tasks.task[kanban.tasks.count].id = kanban.tasks.count + 1;
+    kanban.tasks.task[kanban.tasks.count].start_time = 0;
+    strcpy(kanban.tasks.task[kanban.tasks.count].activity, TODO);
+
+    printf("%s %d\n", TASK, kanban.tasks.task[kanban.tasks.count].id);
+    kanban.tasks.count++;
+
+    return TRUE;
+}
+
+
+/* Handles the command that adds a new Task to the kanban board. */
+void handle_command_t(char string[]) {
+    unsigned short num_args = 2;
+ 
+    get_arguments(string, num_args, SPACING);
+    add_task(atoi(kanban.arguments[0]), kanban.arguments[1]);
+}
+
+
+/* Handles the command to list the given tasks alphabetically. */
+void handle_command_l() {
+    unsigned int i, j = 0, count = 0;
+    char id[ID_MAX_CHAR];
+    short flag = NO_CHAR_FOUND;
+    char c = '_';
+
+    /* Find each inserted id */
+    while(c != '\n') {
+        c = getchar();
+        if (c == ' ' || c == '\0' || c == '\n') {
+            if (flag == FOUND_CHAR) {
+                id[j] = '\0';
+                j = 0;
+                count++;
+                flag = NO_CHAR_FOUND;
+                list_task(atoi(id)); /* print the task's information */
+            }
+        } else {
+            id[j] = c;
+            j++;
+            flag = FOUND_CHAR;
+        }
+    }
+    if (count == 0){
+        /* List all tasks by description */
+        sort_by_description(0, kanban.tasks.count-1);
+        for (i = 0; i < kanban.tasks.count; i++)
+            list_task(kanban.tasks.task[i].id);
+    }  
+}
+
+
+/* Forwards the time based on the given offset. 
+Returns True if the offset is valid and False if the offset is invalid. */
+int time_forward(int offset) {
+    if (offset >= 0) {
+        kanban.time += offset;
+        printf("%d\n", kanban.time);
+        return TRUE;
+    }
+
+    printf("%s\n", ERROR_INVALID_TIME);
+    return FALSE;
+}
+
+
+/* Handles the command to forward the time. */
+void handle_command_n(char string[]) {
+    get_arguments(string, 1, NO_SPACING);
+    time_forward(atoi(kanban.arguments[0]));
+}
+
+
+
+/* Checks if any argument was given by the user.
+ Return True if an argument was found and False otherwise. */
+int argument_exists(char string[]) {
+    unsigned int i;
+    for (i = 1; i < strlen(string)-1; i++) {
+        if (string[i] != ' ' || string[i] != '\n')
+             return TRUE;
+    }
+
+    return FALSE;
+}
+
+
+/* Handles the command to add a new user to the kanban board or list all existing users. */
+void handle_command_u(char string[]) {
+    unsigned int i;
+    get_arguments(string, 1, NO_SPACING);
+
+    if (argument_exists(string)) {
+        add_user(kanban.arguments[0]); /* add new user to the kanban board. */
+    } else {
+        for (i = 0; i < kanban.users.count; i++) /* print all users */
+            printf("%s\n", kanban.users.user[i]);
+    }
+}
+
+
+/* Checks if the given activity already exists. 
+Returns True if the activity already exists and False otherwise. */
+int is_duplicate_activity(char activity[]) {
+    unsigned int i;
+
+    for (i = 0; i < kanban.activities.count; i++) 
+        if (strcmp(kanban.activities.activity[i], activity) == 0)
+            return TRUE;
+
+    return FALSE;
+}
+
+
+/* Handles the command to move a given task from the current activity to the new given activity. */
+void handle_command_m(char string[]) {
+    int slack, index;
+    unsigned int time_spent;
+    get_arguments(string, 3, SPACING);
+    index = find_task_by_id(atoi(kanban.arguments[0]));
+
+    if (index == ERROR) {
+        printf("%s\n", ERROR_NO_SUCH_TASK);
+        return;
+
+    } else if (strcmp(kanban.arguments[2], TODO) == 0) {
+        if(strcmp(kanban.tasks.task[index].activity, TODO) != 0)
+            printf("%s\n", ERROR_TASK_ALREADY_STARTED);
+        return;
+
+    } else if (!is_duplicate_user(kanban.arguments[1])) {
+        printf("%s\n", ERROR_NO_SUCH_USER);
+        return;
+
+    } else if (!is_duplicate_activity(kanban.arguments[2])) {
+        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
+        return;
+    }
+
+    strcpy(kanban.tasks.task[index].user, kanban.arguments[1]);
+
+    if (strcmp(kanban.arguments[2], kanban.tasks.task[index].activity) != 0) {
+        if (strcmp(kanban.arguments[2], DONE) == 0) {
+
+            if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) {
+                time_spent = 0;
+                kanban.tasks.task[index].start_time = kanban.time;
+            } else 
+                time_spent = kanban.time - kanban.tasks.task[index].start_time;
+            slack = time_spent - kanban.tasks.task[index].expected_duration;
+            printf("%s=%d %s=%d\n", DURATION, time_spent, SLACK, slack);
+
+        } else if (strcmp(kanban.tasks.task[index].activity, TODO) == 0) 
+            kanban.tasks.task[index].start_time = kanban.time;
+        
+        strcpy(kanban.tasks.task[index].activity, kanban.arguments[2]); 
+    }    
+}
+
+
+/* Handles the command to list all tasks that are in a given activity.
+The tasks will be listed by their start time or if not possible, by alphabetical order. */
+void handle_command_d(char string[]) {
+    unsigned int i, j = 0;
+    Task tasks_in_activity[TASK_MAX];
+    get_arguments(string, 1, SPACING);
+
+    if (!is_duplicate_activity(kanban.arguments[0])) {
+        printf("%s\n", ERROR_NO_SUCH_ACTIVITY);
+        return;
+    }
+
+    for (i = 0; i < kanban.tasks.count; i++) {
+        if (strcmp(kanban.tasks.task[i].activity, kanban.arguments[0]) == 0) {
+            tasks_in_activity[j] = kanban.tasks.task[i];
+            j++;
+        }
+    }
+
+    sort_by_start_time(tasks_in_activity, 0, j-1);
+
+    for (i = 0; i < j; i++) {
+        if (strcmp(tasks_in_activity[i].activity, kanban.arguments[0]) == 0) {
+            printf("%d %d %s\n", tasks_in_activity[i].id,\
+            tasks_in_activity[i].start_time, tasks_in_activity[i].description);
+        }
+    }
+}
+
+/* Adds an activity to the kanban board. Returns True if the activity was added successfully or
+returns False otherwise and prints the corresponding error. */
+int add_activity(char activity[]) {
+    if (is_duplicate_activity(activity)) {
+        printf("%s\n", ERROR_DUPLICATE_ACTIVITY);
+        return FALSE;
+
+    } else if (!is_valid_activity(activity)) {
+        printf("%s\n", ERROR_INVALID_ACTIVITY);
+        return FALSE;
+        
+    } else if (kanban.activities.count >= ACTIVITY_MAX) {
+        printf("%s\n", ERROR_TOO_MANY_ACTIVITIES);
+        return FALSE;
+    }
+
+    strcpy(kanban.activities.activity[kanban.activities.count], activity);
+    kanban.activities.count++;
+    return TRUE;
+}
+
+
+/* Handles the command that adds a new activity to the board or 
+lists all activities by their creation order. */
+void handle_command_a(char string[]) {
+    unsigned int i;
+
+    if (!argument_exists(string)) {
+        for (i = 0; i < kanban.activities.count; i++)
+            printf("%s\n", kanban.activities.activity[i]);
+    } else {
+        get_arguments(string, 1, SPACING);
+        add_activity(kanban.arguments[0]);
+    }
+}
+
